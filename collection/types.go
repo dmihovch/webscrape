@@ -6,8 +6,9 @@ import (
 )
 
 type SyncMap struct {
-	Mut  sync.Mutex
-	Rmap map[string]*Refs
+	Mut     sync.Mutex
+	Rmap    map[string]*Refs
+	InitUrl string
 }
 
 type Refs struct {
@@ -28,15 +29,15 @@ func (SMap *SyncMap) Init() {
 }
 
 // returns: 0 created new field in map, 1 field already exists
-func (SMap *SyncMap) SetNewKey(Url string) int {
+func (SMap *SyncMap) SetNewKey(Url string) bool {
 	SMap.Mut.Lock()
 	defer SMap.Mut.Unlock()
 	_, exists := SMap.Rmap[Url]
 	if !exists {
 		SMap.Rmap[Url] = &Refs{}
-		return 0
+		return true
 	}
-	return 1
+	return false
 }
 func (SMap *SyncMap) SetToRefs(UrlKey string, Urls []string) error {
 

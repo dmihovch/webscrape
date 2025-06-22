@@ -1,39 +1,30 @@
 package collection
 
 import (
-	"fmt"
-	"io"
 	"net/http"
 	"strings"
 
 	"golang.org/x/net/html"
 )
 
-func InitialScrape(url string) ([]string, error) {
+func (smap *SyncMap) InitialScrapeAndParse(url string) {
 	resp, err := http.Get(url)
-	if err != nil {
-		return nil, err
-	}
-	defer resp.Body.Close()
-
-	body, err := io.ReadAll(resp.Body)
-	if err != nil {
-		return nil, err
-	}
-
-	str := string(body)
-
-	strarr := strings.Split(str, "\n")
-	return strarr, nil
-
-}
-
-func ParseWikiLinks(r io.Reader) ([]string, error) {
-	doc, err := html.Parse(r)
 	if err != nil {
 		panic(err)
 	}
+	defer resp.Body.Close()
 
+	doc, err := html.Parse(resp.Body)
+	if err != nil {
+		panic(err)
+	}
+	smap.InitUrl = url
+
+	smap.Rmap[url].To = parseLinks(doc)
+
+}
+
+func parseLinks(doc *html.Node) []string {
 	var wikiLinks []string
 
 	for n := range doc.Descendants() {
@@ -47,27 +38,32 @@ func ParseWikiLinks(r io.Reader) ([]string, error) {
 
 		}
 	}
-	return wikiLinks, nil
+	return wikiLinks
 }
 
-func ScrapeToken(line string, target string) {
-	if strings.Contains(line, "href=\"https://") {
-		fmt.Println(line)
-	}
+func (smap *SyncMap) RecursiveScrape(depth int) {
+	for i, url := range smap.Rmap[smap.InitUrl].To {
+		if i >= depth {
+			break
+		}
+		go func() {
+			ok := smap.SetNewKey(url)
+			if !ok {
+				panic("key already exists in recur scrape")
+			}
+
+			resp, err := http.Get(url)
+			if err != nil {
+				panic(err)
+			}
+
+			doc, err := html.Parse(resp.Body)
+			if err != nil {
+				panic(err)
+			}
+			resp.Body.Close()
+			smap.SetToRefs(url, parseLinks(doc))
+
+		}()
+
 }
-
-/*
-func RecursiveScrape(UrlMap *map[string]*Refs, InitUrl string) error {
-	resp, err := http.Get(InitUrl)
-	if err != nil {
-		return err
-	}
-	body := resp.Body
-	defer body.Close()
-
-	go func() {
-
-	}()
-
-}
-*/

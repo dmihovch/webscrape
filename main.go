@@ -23,16 +23,8 @@ func main() {
 		}
 	*/
 	webData := &c.SyncMap{}
-
 	webData.Init()
-
-	webData.SetNewKey("Test")
-	webData.SetAllRefs("Test", []string{"to", "to"}, []string{"from", "from"})
-
-	println(webData.Rmap["Test"].From[0])
-	println(webData.Rmap["Test"].To[0])
-
-	println(webData.Rmap["Test"].From[1])
-	println(webData.Rmap["Test"].To[1])
+	webData.InitialScrapeAndParse("url")
+	webData.RecursiveScrape(10)
 
 }
