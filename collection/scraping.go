@@ -1,4 +1,4 @@
-package main
+package collection
 
 import (
 	"fmt"
@@ -9,7 +9,7 @@ import (
 	"golang.org/x/net/html"
 )
 
-func initialScrape(url string) ([]string, error) {
+func InitialScrape(url string) ([]string, error) {
 	resp, err := http.Get(url)
 	if err != nil {
 		return nil, err
@@ -40,7 +40,7 @@ func ParseWikiLinks(r io.Reader) ([]string, error) {
 		if n.Type == html.ElementNode && n.Data == "a" {
 
 			for _, atr := range n.Attr {
-				if atr.Key == "href" && strings.HasPrefix(atr.Val, "/wiki/") {
+				if atr.Key == "href" && strings.HasPrefix(atr.Val, "/wiki/") && !strings.Contains(atr.Val, ":") {
 					wikiLinks = append(wikiLinks, "https://en.wikipedia.org"+atr.Val)
 				}
 			}
@@ -50,11 +50,24 @@ func ParseWikiLinks(r io.Reader) ([]string, error) {
 	return wikiLinks, nil
 }
 
-func scrapeToken(line string, target string) {
+func ScrapeToken(line string, target string) {
 	if strings.Contains(line, "href=\"https://") {
 		fmt.Println(line)
 	}
 }
 
-func recursiveScrape(url string, parents []int) {
+/*
+func RecursiveScrape(UrlMap *map[string]*Refs, InitUrl string) error {
+	resp, err := http.Get(InitUrl)
+	if err != nil {
+		return err
+	}
+	body := resp.Body
+	defer body.Close()
+
+	go func() {
+
+	}()
+
 }
+*/

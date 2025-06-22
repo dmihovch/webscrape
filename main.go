@@ -1,30 +1,38 @@
 package main
 
 import (
-	"fmt"
-	"net/http"
-	"os"
+	c "webscrape/collection"
 )
 
 func main() {
+	/*
+		if len(os.Args) < 2 {
+			fmt.Println("please provide a url")
+			return
+		}
 
-	if len(os.Args) < 2 {
-		fmt.Println("please provide a url")
-		return
-	}
+		resp, err := http.Get(os.Args[1])
+		if err != nil {
+			panic(err)
+		}
 
-	resp, err := http.Get(os.Args[1])
-	if err != nil {
-		panic(err)
-	}
-	defer resp.Body.Close()
+		_, err = c.ParseWikiLinks(resp.Body)
+		resp.Body.Close()
+		if err != nil {
+			panic(err)
+		}
+	*/
+	webData := &c.SyncMap{}
 
-	data, err := ParseWikiLinks(resp.Body)
-	if err != nil {
-		panic(err)
-	}
+	webData.Init()
 
-	for _, d := range data {
-		fmt.Printf("%s\n", d)
-	}
+	webData.SetNewKey("Test")
+	webData.SetAllRefs("Test", []string{"to", "to"}, []string{"from", "from"})
+
+	println(webData.Rmap["Test"].From[0])
+	println(webData.Rmap["Test"].To[0])
+
+	println(webData.Rmap["Test"].From[1])
+	println(webData.Rmap["Test"].To[1])
+
 }
