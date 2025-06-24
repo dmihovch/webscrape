@@ -7,6 +7,20 @@ import (
 
 //going to refactor with a tree structure
 
+type WebTree struct {
+	initUrl string
+}
+
+type Node struct {
+	url         string
+	numChildren int
+	children    []*Node
+}
+
+func CreateNode(url string, numChildren int, children []*Node) *Node {
+	return &Node{url, numChildren, children}
+}
+
 type SyncMap struct {
 	Mut     sync.Mutex
 	Rmap    map[string]*Refs
