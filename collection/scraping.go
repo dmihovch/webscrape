@@ -1,14 +1,15 @@
 package collection
 
 import (
+	"fmt"
 	"net/http"
 	"strings"
 
 	"golang.org/x/net/html"
 )
 
-func (smap *SyncMap) InitialScrapeAndParse(url string) {
-	resp, err := http.Get(url)
+func (smap *SyncMap) InitialScrapeAndParse() {
+	resp, err := http.Get(smap.InitUrl)
 	if err != nil {
 		panic(err)
 	}
@@ -18,9 +19,8 @@ func (smap *SyncMap) InitialScrapeAndParse(url string) {
 	if err != nil {
 		panic(err)
 	}
-	smap.InitUrl = url
 
-	smap.Rmap[url].To = parseLinks(doc)
+	smap.Rmap[smap.InitUrl].To = parseLinks(doc)
 
 }
 
@@ -41,18 +41,18 @@ func parseLinks(doc *html.Node) []string {
 	return wikiLinks
 }
 
-func (smap *SyncMap) RecursiveScrape(depth int) {
-	for i, url := range smap.Rmap[smap.InitUrl].To {
-		if i >= depth {
-			break
-		}
+func (smap *SyncMap) RecursiveScrape(url string) {
+	for _, urlinmap := range smap.Rmap[url].To {
+
 		go func() {
-			ok := smap.SetNewKey(url)
+
+			ok := smap.SetNewKey(urlinmap)
 			if !ok {
+				fmt.Println(urlinmap)
 				panic("key already exists in recur scrape")
 			}
 
-			resp, err := http.Get(url)
+			resp, err := http.Get(urlinmap)
 			if err != nil {
 				panic(err)
 			}
@@ -62,8 +62,8 @@ func (smap *SyncMap) RecursiveScrape(depth int) {
 				panic(err)
 			}
 			resp.Body.Close()
-			smap.SetToRefs(url, parseLinks(doc))
-
+			smap.SetToRefs(urlinmap, parseLinks(doc))
+			smap.RecursiveScrape(urlinmap)
 		}()
-
+	}
 }

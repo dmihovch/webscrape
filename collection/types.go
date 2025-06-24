@@ -5,10 +5,14 @@ import (
 	"sync"
 )
 
+//going to refactor with a tree structure
+
 type SyncMap struct {
 	Mut     sync.Mutex
 	Rmap    map[string]*Refs
 	InitUrl string
+	Depth   int
+	Cntr    *Counter
 }
 
 type Refs struct {
@@ -17,15 +21,23 @@ type Refs struct {
 	To   []string
 }
 
+type Counter struct {
+	Mut   sync.Mutex
+	Iters int
+}
+
 func (SMap *SyncMap) GetRefs(UrlKey string) *Refs {
 	return SMap.Rmap[UrlKey]
 
 }
 
-func (SMap *SyncMap) Init() {
+func (SMap *SyncMap) Init(depth int, initUrl string) {
 	SMap.Mut = sync.Mutex{}
 	SMap.Rmap = make(map[string]*Refs)
-
+	SMap.Depth = depth
+	SMap.InitUrl = initUrl
+	SMap.Rmap[initUrl] = &Refs{}
+	SMap.Cntr = &Counter{}
 }
 
 // returns: 0 created new field in map, 1 field already exists
