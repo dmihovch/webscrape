@@ -8,23 +8,25 @@ import (
 	"golang.org/x/net/html"
 )
 
-func (smap *SyncMap) InitialScrapeAndParse() {
-	resp, err := http.Get(smap.InitUrl)
+func (mm *MasterMap) Init() error {
+	site, err := http.Get(mm.InitUrl)
+
 	if err != nil {
-		panic(err)
+		return err
 	}
-	defer resp.Body.Close()
+	defer site.Body.Close()
 
-	doc, err := html.Parse(resp.Body)
+	doc, err := html.Parse(site.Body)
 	if err != nil {
-		panic(err)
+		return err
 	}
 
-	smap.Rmap[smap.InitUrl].To = parseLinks(doc)
+	mm.Refs.ToRefs[mm.InitUrl] = ParseLinks(doc)
 
+	return nil
 }
 
-func parseLinks(doc *html.Node) []string {
+func ParseLinks(doc *html.Node) []string {
 	var wikiLinks []string
 
 	for n := range doc.Descendants() {
@@ -39,6 +41,19 @@ func parseLinks(doc *html.Node) []string {
 		}
 	}
 	return wikiLinks
+}
+
+func (mm *MasterMap) GoScrape() {
+
+	for url := range mm.Channel {
+		mm.Size++
+		if mm.Size >= mm.SizeLimit {
+			close(mm.Channel)
+			break
+		}
+
+	}
+
 }
 
 func (smap *SyncMap) RecursiveScrape(url string) {
