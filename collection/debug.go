@@ -4,15 +4,13 @@ import (
 	"fmt"
 )
 
-func (sm *SyncMap) PrintSyncMap() {
-	fmt.Printf("Init Url: [%s]\n\n", sm.InitUrl)
-
-	for url, refs := range sm.Rmap {
-		fmt.Printf("[%s] points to:\n", url)
-		for i, tourl := range refs.To {
-			fmt.Printf("\t%d: [%s]\n", i, tourl)
+func (mm *MasterMap) PrintMasterMap() {
+	fmt.Println("Initial URL: ", mm.InitUrl)
+	for url, refs := range mm.Refs.ToRefs {
+		fmt.Println()
+		fmt.Printf("{%s} Refers To:\n", url)
+		for i, u := range refs {
+			fmt.Printf("\t %d: {%s}\n", i, u)
 		}
-		fmt.Printf("\n\n\n")
 	}
-
 }

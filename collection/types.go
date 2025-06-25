@@ -7,17 +7,13 @@ import (
 //going to refactor with a tree structure
 
 type MasterMap struct {
-	InitUrl    string
-	SizeLimit  int
-	Size       int
-	MasterList *Ledger
-	Refs       *SyncMap
-	Channel    chan (string)
-}
-
-type Ledger struct {
-	Mut     sync.Mutex
-	AllUrls []string
+	WaitGroup sync.WaitGroup
+	InitUrl   string
+	SizeLimit int
+	Size      int
+	Refs      *SyncMap
+	Channel   chan (string)
+	CloseFlag bool
 }
 
 type SyncMap struct {
@@ -27,6 +23,7 @@ type SyncMap struct {
 
 func CreateMasterMap(InitUrl string, SizeLimit int) *MasterMap {
 	return &MasterMap{
+		WaitGroup: sync.WaitGroup{},
 		InitUrl:   InitUrl,
 		SizeLimit: SizeLimit,
 		Size:      1,
@@ -34,24 +31,40 @@ func CreateMasterMap(InitUrl string, SizeLimit int) *MasterMap {
 			Mut:    sync.Mutex{},
 			ToRefs: make(map[string][]string),
 		},
-		Channel: make(chan (string)),
+		Channel:   make(chan string, SizeLimit),
+		CloseFlag: false,
 	}
 }
 
 func (mm *MasterMap) AddNewUrl(NewUrl string) {
-	mm.Channel <- NewUrl
 
-	//this will cause big slow downs??
-	mm.Refs.Mut.Lock()
+	if (mm.Size + 1) == mm.SizeLimit {
+		mm.CloseFlag = true
+		return
+	}
+
+	mm.Size = mm.Size + 1
 	mm.Refs.ToRefs[NewUrl] = []string{}
-	mm.Refs.Mut.Unlock()
+
 }
 
-func (mm *MasterMap) AddToRefs(Url string, Refs []string) {
-	mm.Refs.Mut.Lock()
-	defer mm.Refs.Mut.Unlock()
-	for _, url := range Refs {
-		mm.Refs.ToRefs[Url] = append(mm.Refs.ToRefs[Url], url)
-	}
+func (mm *MasterMap) SetToRefs(Url string, Refs []string) {
+
+	mm.Refs.ToRefs[Url] = Refs
+
+	mm.WaitGroup.Add(1)
+	go func(refs []string) {
+		defer mm.WaitGroup.Done()
+		for _, url := range Refs {
+			mm.Refs.Mut.Lock()
+			if _, exists := mm.Refs.ToRefs[url]; !exists {
+				mm.AddNewUrl(url)
+				mm.Refs.Mut.Unlock()
+				mm.Channel <- url
+			} else {
+				mm.Refs.Mut.Unlock()
+			}
+		}
+	}(Refs)
 
 }

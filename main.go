@@ -13,11 +13,10 @@ func main() {
 		fmt.Println("please provide a url")
 		return
 	}
-	webData := &c.SyncMap{}
-	webData.Init(1, os.Args[1])
-	webData.InitialScrapeAndParse()
-	webData.RecursiveScrape(webData.InitUrl)
 
-	webData.PrintSyncMap()
+	Data := c.CreateMasterMap(os.Args[1], 100)
+	fmt.Println("Finished Create Master Map")
+	Data.Collect()
 
+	Data.PrintMasterMap()
 }

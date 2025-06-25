@@ -8,24 +8,6 @@ import (
 	"golang.org/x/net/html"
 )
 
-func (mm *MasterMap) Init() error {
-	site, err := http.Get(mm.InitUrl)
-
-	if err != nil {
-		return err
-	}
-	defer site.Body.Close()
-
-	doc, err := html.Parse(site.Body)
-	if err != nil {
-		return err
-	}
-
-	mm.Refs.ToRefs[mm.InitUrl] = ParseLinks(doc)
-
-	return nil
-}
-
 func ParseLinks(doc *html.Node) []string {
 	var wikiLinks []string
 
@@ -43,42 +25,61 @@ func ParseLinks(doc *html.Node) []string {
 	return wikiLinks
 }
 
-func (mm *MasterMap) GoScrape() {
+func (mm *MasterMap) Collect() {
 
-	for url := range mm.Channel {
-		mm.Size++
-		if mm.Size >= mm.SizeLimit {
-			close(mm.Channel)
-			break
+	go func() {
+		mm.Channel <- mm.InitUrl
+	}()
+
+	mm.WaitGroup.Add(1)
+	go mm.ScrapeLoop()
+
+	mm.WaitGroup.Wait()
+
+}
+
+func (mm *MasterMap) ScrapeLoop() {
+	defer mm.WaitGroup.Done()
+	fmt.Println("In Scrape Loop")
+
+	for {
+		fmt.Println("about to block")
+		select {
+		case NewUrl, ok := <-mm.Channel:
+			if !ok {
+				return
+			}
+			fmt.Println(NewUrl, ": new url from channel")
+
+			fmt.Println(NewUrl, ": about to scrape")
+			mm.WaitGroup.Add(1)
+			go func(url string) {
+				defer mm.WaitGroup.Done()
+				mm.GoScrape(url)
+			}(NewUrl)
+			fmt.Println(NewUrl, ": scraped url")
+
 		}
-
 	}
 
 }
 
-func (smap *SyncMap) RecursiveScrape(url string) {
-	for _, urlinmap := range smap.Rmap[url].To {
+func (mm *MasterMap) GoScrape(url string) {
 
-		go func() {
+	site, err := http.Get(url)
 
-			ok := smap.SetNewKey(urlinmap)
-			if !ok {
-				fmt.Println(urlinmap)
-				panic("key already exists in recur scrape")
-			}
-
-			resp, err := http.Get(urlinmap)
-			if err != nil {
-				panic(err)
-			}
-
-			doc, err := html.Parse(resp.Body)
-			if err != nil {
-				panic(err)
-			}
-			resp.Body.Close()
-			smap.SetToRefs(urlinmap, parseLinks(doc))
-			smap.RecursiveScrape(urlinmap)
-		}()
+	if err != nil {
+		delete(mm.Refs.ToRefs, url)
+		return
 	}
+
+	doc, err := html.Parse(site.Body)
+	if err != nil {
+		delete(mm.Refs.ToRefs, url)
+		return
+	}
+	site.Body.Close()
+
+	mm.SetToRefs(url, ParseLinks(doc))
+
 }
