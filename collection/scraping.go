@@ -43,6 +43,9 @@ func (mm *MasterMap) Collect() {
 
 func (mm *MasterMap) ScrapeLoop() {
 
+	fmt.Println("Scrape Loop Running")
+	fmt.Println(len(mm.Channel))
+
 	for NewUrl := range mm.Channel {
 		fmt.Println("Recieved URL")
 		mm.WaitGroup.Add(1)
@@ -55,7 +58,6 @@ func (mm *MasterMap) ScrapeLoop() {
 }
 
 func (mm *MasterMap) GoScrape(url string) {
-
 	site, err := http.Get(url)
 
 	if err != nil {
@@ -69,7 +71,41 @@ func (mm *MasterMap) GoScrape(url string) {
 		return
 	}
 	site.Body.Close()
-
 	mm.SetToRefs(url, ParseLinks(doc))
+
+}
+
+func (mm *MasterMap) SetToRefs(Url string, Refs []string) {
+	//fmt.Println("attemping to hold lock in setToRefs")
+	mm.Refs.Mut.Lock()
+	mm.Refs.ToRefs[Url] = Refs
+	mm.Refs.Mut.Unlock()
+	//fmt.Println("letting go hold lock in setToRefs")
+
+	for _, url := range Refs {
+		mm.AddNewUrl(url)
+	}
+
+}
+
+func (mm *MasterMap) AddNewUrl(NewUrl string) {
+
+	mm.Refs.Mut.Lock()
+
+	defer mm.Refs.Mut.Unlock()
+
+	if _, exists := mm.Refs.ToRefs[NewUrl]; exists {
+		fmt.Println("????")
+		return
+	}
+
+	if mm.Size >= mm.SizeLimit {
+		return
+	}
+
+	mm.Size++
+	mm.Refs.ToRefs[NewUrl] = []string{}
+	fmt.Println("Sending url to channel...")
+	mm.Channel <- NewUrl
 
 }

@@ -14,8 +14,7 @@ func main() {
 		return
 	}
 
-	Data := c.CreateMasterMap(os.Args[1], 10)
+	Data := c.CreateMasterMap(os.Args[1], 1000)
 	Data.Collect()
-
 	Data.PrintMasterMapStats()
 }
