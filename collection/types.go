@@ -1,6 +1,7 @@
 package collection
 
 import (
+	"fmt"
 	"sync"
 )
 
@@ -13,7 +14,6 @@ type MasterMap struct {
 	Size      int
 	Refs      *SyncMap
 	Channel   chan (string)
-	CloseFlag bool
 }
 
 type SyncMap struct {
@@ -31,40 +31,54 @@ func CreateMasterMap(InitUrl string, SizeLimit int) *MasterMap {
 			Mut:    sync.Mutex{},
 			ToRefs: make(map[string][]string),
 		},
-		Channel:   make(chan string, SizeLimit),
-		CloseFlag: false,
+		Channel: make(chan string, SizeLimit),
 	}
 }
 
 func (mm *MasterMap) AddNewUrl(NewUrl string) {
 
-	if (mm.Size + 1) == mm.SizeLimit {
-		mm.CloseFlag = true
+	mm.Refs.Mut.Lock()
+
+	defer mm.Refs.Mut.Unlock()
+
+	if _, exists := mm.Refs.ToRefs[NewUrl]; exists {
 		return
 	}
 
-	mm.Size = mm.Size + 1
+	if mm.Size >= mm.SizeLimit {
+		return
+	}
+
+	mm.Size++
 	mm.Refs.ToRefs[NewUrl] = []string{}
+	fmt.Println("Sending url to channel...")
+	mm.Channel <- NewUrl
+	fmt.Println("Done")
 
 }
 
 func (mm *MasterMap) SetToRefs(Url string, Refs []string) {
-
+	fmt.Println("attemping to hold lock in setToRefs")
+	mm.Refs.Mut.Lock()
 	mm.Refs.ToRefs[Url] = Refs
+	mm.Refs.Mut.Unlock()
+	fmt.Println("letting go hold lock in setToRefs")
 
-	mm.WaitGroup.Add(1)
-	go func(refs []string) {
-		defer mm.WaitGroup.Done()
-		for _, url := range Refs {
-			mm.Refs.Mut.Lock()
-			if _, exists := mm.Refs.ToRefs[url]; !exists {
-				mm.AddNewUrl(url)
-				mm.Refs.Mut.Unlock()
-				mm.Channel <- url
-			} else {
-				mm.Refs.Mut.Unlock()
-			}
-		}
-	}(Refs)
+	for _, url := range Refs {
+		mm.AddNewUrl(url)
+	}
+
+	/*
+
+		going to leave it here because I think if done right, will speed things up, but I think its done wrong and breaking shit rn
+
+		go func(refs []string) {
+				defer mm.WaitGroup.Done()
+				for _, url := range Refs {
+					mm.AddNewUrl(url)
+				}
+			}(Refs)
+
+	*/
 
 }

@@ -27,41 +27,31 @@ func ParseLinks(doc *html.Node) []string {
 
 func (mm *MasterMap) Collect() {
 
-	go func() {
-		mm.Channel <- mm.InitUrl
-	}()
-
-	mm.WaitGroup.Add(1)
 	go mm.ScrapeLoop()
 
+	mm.WaitGroup.Add(1)
+	go func() {
+		defer mm.WaitGroup.Done()
+		mm.GoScrape(mm.InitUrl)
+	}()
+
+	fmt.Println("Waiting now")
 	mm.WaitGroup.Wait()
+	fmt.Println("Done waiting")
 
 }
 
 func (mm *MasterMap) ScrapeLoop() {
-	defer mm.WaitGroup.Done()
-	fmt.Println("In Scrape Loop")
 
-	for {
-		fmt.Println("about to block")
-		select {
-		case NewUrl, ok := <-mm.Channel:
-			if !ok {
-				return
-			}
-			fmt.Println(NewUrl, ": new url from channel")
-
-			fmt.Println(NewUrl, ": about to scrape")
-			mm.WaitGroup.Add(1)
-			go func(url string) {
-				defer mm.WaitGroup.Done()
-				mm.GoScrape(url)
-			}(NewUrl)
-			fmt.Println(NewUrl, ": scraped url")
-
-		}
+	for NewUrl := range mm.Channel {
+		fmt.Println("Recieved URL")
+		mm.WaitGroup.Add(1)
+		go func(url string) {
+			defer mm.WaitGroup.Done()
+			fmt.Println("Entering GoScrape")
+			mm.GoScrape(url)
+		}(NewUrl)
 	}
-
 }
 
 func (mm *MasterMap) GoScrape(url string) {
